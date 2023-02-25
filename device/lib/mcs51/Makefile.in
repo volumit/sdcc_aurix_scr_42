@@ -1,0 +1,124 @@
+# libc/mcs51 Makefile
+
+VPATH  = @srcdir@
+srcdir = @srcdir@
+
+top_srcdir   = @top_srcdir@
+top_builddir = @top_builddir@
+
+LIB_TYPE     = @LIB_TYPE@
+SAS = $(top_builddir)/bin/sdas8051
+SCC = $(top_builddir)/bin/sdcc
+
+# override PORTDIR defined by super (parent) makefile
+override PORTDIR = ../build/$(PORT)
+
+ifneq (,$(findstring xstack,$(PORT)))
+OBJSCRTC3 = crtstart.rel crtxinit.rel crtxclear.rel crtclear.rel \
+      crtpagesfr_tc3xx.rel crtbank.rel crtcall.rel \
+      crtxstackx.rel crtxpush.rel crtxpushr0.rel crtxpop.rel crtxpopr0.rel \
+      gptr_cmp.rel atomic_flag_test_and_set.rel atomic_flag_clear.rel
+OBJSCRTC4 = crtstart.rel crtxinit.rel crtxclear.rel crtclear.rel \
+      crtpagesfr_tc4xx.rel crtbank.rel crtcall.rel \
+      crtxstackx.rel crtxpush.rel crtxpushr0.rel crtxpop.rel crtxpopr0.rel \
+      gptr_cmp.rel atomic_flag_test_and_set.rel atomic_flag_clear.rel
+else
+OBJSCRTC3 = crtstart.rel crtxinit.rel crtxclear.rel crtclear.rel \
+      crtpagesfr_tc3xx.rel crtbank.rel crtcall.rel \
+      crtxstack.rel crtxpush.rel crtxpushr0.rel crtxpop.rel crtxpopr0.rel \
+      gptr_cmp.rel atomic_flag_test_and_set.rel atomic_flag_clear.rel
+OBJSCRTC4 = crtstart.rel crtxinit.rel crtxclear.rel crtclear.rel \
+      crtpagesfr_tc4xx.rel crtbank.rel crtcall.rel \
+      crtxstackx.rel crtxpush.rel crtxpushr0.rel crtxpop.rel crtxpopr0.rel \
+      gptr_cmp.rel atomic_flag_test_and_set.rel atomic_flag_clear.rel
+endif
+
+ifeq (,$(findstring --asm-scr,$(MODFELFLAGS)))
+ASMOPT = --asm-scr 
+endif
+
+ifeq (,$(findstring --asm-mcs51,$(MODFELFLAGS)))
+ASMOPT = --asm-mcs51 
+endif
+
+
+#OBJ = crtstart.rel crtxinit.rel crtxclear.rel crtclear.rel \
+#      crtpagesfr.rel crtbank.rel crtcall.rel \
+#      crtxstack.rel crtxpush.rel crtxpushr0.rel crtxpop.rel crtxpopr0.rel \
+#      gptr_cmp.rel atomic_flag_test_and_set.rel atomic_flag_clear.rel
+
+LIBSCRTC3 = libscrtc3xx.a
+LIBSCRTC4 = libscrtc4xx.a
+LIBSMCS51 = libmcs51.a
+CC = $(SCC)
+AS = $(top_builddir)/bin/i51-elf-as
+#ASFLAGS = -plosgff
+#ASFLAGS = -mmcs51
+#ASFLAGS = -mscr
+ASFLAGS = -mscr
+
+CFLAGS = -I$(top_srcdir)/device/include --std-c11
+
+all: $(PORTDIR)/$(LIBSCRTC3) $(PORTDIR)/$(LIBSCRTC4)
+
+$(PORTDIR)/$(LIBSCRTC4): $(OBJSCRTC4) linker_tc4xx.ld Makefile
+ifeq ($(LIB_TYPE), SDCCLIB)
+	rm -f $@; \
+	$(top_builddir)/bin/sdcclib -a $@ $(OBJSCRTC4)
+else
+  ifeq ($(LIB_TYPE), AR)
+	$(top_builddir)/bin/sdar -rcSD $@ $(OBJSCRTC4)
+  else
+    ifeq ($(LIB_TYPE), RANLIB)
+#	$(top_builddir)/bin/sdar -rcD $@ $(OBJSCRTC3)
+	echo 'i51-elf-ar -r $@ $(OBJSCRTC4)' 
+	$(top_builddir)/bin/i51-elf-ar -r $@ $(OBJSCRTC4)
+	$(top_builddir)/bin/i51-elf-ar -r $(PORTDIR)/$(LIBSMCS51) $(OBJSCRTC4)
+	echo 'cp $(srcdir)/linker_tc4xx.ld $(PORTDIR)'
+	cp $(srcdir)/linker_tc4xx.ld $(PORTDIR)
+    else
+	rm -f $@
+	for i in $(basename $(OBJSCRTC4)); do echo $$i >>$@; done
+	cp $(OBJSCRTC4) $(PORTDIR)
+    endif
+  endif
+endif
+
+$(PORTDIR)/$(LIBSCRTC3): $(OBJSCRTC3) linker_tc3xx.ld Makefile
+ifeq ($(LIB_TYPE), SDCCLIB)
+	rm -f $@; \
+	$(top_builddir)/bin/sdcclib -a $@ $(OBJSCRTC3)
+else
+  ifeq ($(LIB_TYPE), AR)
+	$(top_builddir)/bin/sdar -rcSD $@ $(OBJSCRTC3)
+  else
+    ifeq ($(LIB_TYPE), RANLIB)
+#	$(top_builddir)/bin/sdar -rcD $@ $(OBJSCRTC3)
+	echo 'i51-elf-ar -r $@ $(OBJSCRTC3)' 
+	$(top_builddir)/bin/i51-elf-ar -r $@ $(OBJSCRTC3)
+	$(top_builddir)/bin/i51-elf-ar -r $(PORTDIR)/$(LIBSMCS51) $(OBJSCRTC3)
+	echo 'cp $(srcdir)/linker_tc3xx.ld $(PORTDIR)'
+	cp $(srcdir)/linker_tc3xx.ld $(PORTDIR)
+    else
+	rm -f $@
+	for i in $(basename $(OBJSCRTC3)); do echo $$i >>$@; done
+	cp $(OBJSCRTC3) $(PORTDIR)
+    endif
+  endif
+endif
+
+%.rel: %.c
+	$(CC) $(CFLAGS) -c $<
+
+%.rel: %.asm
+	@# TODO: asx8051 should place it\'s output in the current dir
+	test $(srcdir) = . || cp $< .
+	echo '$(AS) $(ASFLAGS) $(notdir $<) -o $(basename $(notdir $<)).rel'
+	-$(AS) $(ASFLAGS) $(notdir $<) -o $(basename $(notdir $<)).rel
+	test $(srcdir) = . || rm $(notdir $<)
+
+clean:
+	rm -f *.rel *.sym *.lst *~ $(CLEANSPEC) *.dump* *.lib *.a
+
+distclean: clean
+	rm -r Makefile
