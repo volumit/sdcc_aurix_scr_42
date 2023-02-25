@@ -31,6 +31,7 @@ The simulator was adapted to reflect the architectural changes of SCR.
 Testsuite results for mcs51-large, mcs51-large-stack-auto --nooverlay.
 
 There is no blocking point to go for small and medium memory models, but maybe testsuite has to be adapted.
+
 Summary for 'mcs51-large': 0 failures, 18471 tests, 3268 test cases, 7127687 bytes, 5297232060 ticks
 
 Summary for 'mcs51-large-stack-auto': 0 failures, 18454 tests, 3267 test cases, 6607445 bytes, 3739580400 ticks
